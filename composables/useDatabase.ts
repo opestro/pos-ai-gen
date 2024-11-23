@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import type { Customer, Product, Service, Transaction, ServiceTicket } from '~/types'
 
+// Initialize database with default values
 const db = ref({
   customers: [] as Customer[],
   products: [] as Product[],
@@ -20,20 +21,44 @@ export function useDatabase() {
       // Try to load from localStorage first
       const stored = localStorage.getItem('pos_db')
       if (stored) {
-        db.value = JSON.parse(stored)
+        const parsedData = JSON.parse(stored)
+        // Ensure all arrays exist
+        db.value = {
+          customers: parsedData.customers || [],
+          products: parsedData.products || [],
+          services: parsedData.services || [],
+          transactions: parsedData.transactions || [],
+          serviceTickets: parsedData.serviceTickets || []
+        }
       } else {
         // Load initial data from db.json
-        const data = await import('~/data/db.json')
-        db.value = data.default
+        const response = await fetch('/data/db.json')
+        const data = await response.json()
+        db.value = {
+          customers: data.customers || [],
+          products: data.products || [],
+          services: data.services || [],
+          transactions: data.transactions || [],
+          serviceTickets: data.serviceTickets || []
+        }
+        // Save to localStorage
+        localStorage.setItem('pos_db', JSON.stringify(db.value))
       }
     } catch (error) {
       console.error('Database initialization failed:', error)
-      throw error
+      // Initialize with empty arrays if loading fails
+      db.value = {
+        customers: [],
+        products: [],
+        services: [],
+        transactions: [],
+        serviceTickets: []
+      }
     }
   }
 
   // Product operations
-  const generateSKU = (category: string) => {
+  function generateSKU(category: string) {
     const prefix = category.substring(0, 1).toUpperCase()
     const timestamp = Date.now().toString().slice(-4)
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
@@ -110,9 +135,18 @@ export function useDatabase() {
   }
 
   // Service operations
-  const getServices = () => db.value.services
-  const addService = (service: Service) => {
-    db.value.services.push(service)
+  function getServices() {
+    return db.value.services
+  }
+
+  function addService(service: Service) {
+    const newService = {
+      ...service,
+      id: Date.now(),
+      createdAt: new Date().toISOString()
+    }
+    db.value.services.push(newService)
+    return newService
   }
 
   // Transaction operations
@@ -123,18 +157,20 @@ export function useDatabase() {
       createdAt: new Date().toISOString()
     }
 
-    // Update customer total purchases and credit if applicable
+    // Update customer total purchases and credit
     const customer = db.value.customers.find(c => c.id === transaction.customerId)
     if (customer) {
       customer.totalPurchases += transaction.total
-      if (transaction.status === 'credit') {
-        customer.credit += transaction.credit || 0
-      }
+      customer.credit -= transaction.creditUsed
+      customer.credit += transaction.newCredit
     }
 
     // Update product stock
     transaction.items.forEach(item => {
-      updateStock(item.id, -item.quantity)
+      const product = db.value.products.find(p => p.id === item.id)
+      if (product) {
+        product.stock -= item.quantity
+      }
     })
 
     db.value.transactions.push(newTransaction)
@@ -146,7 +182,7 @@ export function useDatabase() {
   }
 
   // Service Ticket operations
-  const addServiceTicket = (ticket: Omit<ServiceTicket, 'id' | 'createdAt' | 'status'>) => {
+  function addServiceTicket(ticket: Omit<ServiceTicket, 'id' | 'createdAt' | 'status'>) {
     const newTicket = {
       ...ticket,
       id: Date.now(),
@@ -157,18 +193,38 @@ export function useDatabase() {
     return newTicket
   }
 
-  const completeServiceTicket = (ticketId: number) => {
+  function completeServiceTicket(ticketId: number) {
     const ticket = db.value.serviceTickets.find(t => t.id === ticketId)
     if (ticket && ticket.status === 'pending') {
       ticket.status = 'completed'
       ticket.completedAt = new Date().toISOString()
-      return ticket
+
+      // Create a transaction for the completed service
+      const transaction = createTransaction({
+        customerId: ticket.customerId,
+        items: ticket.parts,
+        subtotal: ticket.partsTotal + ticket.serviceFee,
+        tax: 0, // Services might be tax-exempt, adjust as needed
+        total: ticket.totalPrice,
+        cash: ticket.totalPrice,
+        creditUsed: 0,
+        newCredit: 0,
+        type: 'service',
+        serviceTicketId: ticket.id
+      })
+
+      return { ticket, transaction }
     }
     return null
   }
 
-  const getServiceTickets = () => db.value.serviceTickets
-  const getServiceTicketById = (id: number) => db.value.serviceTickets.find(t => t.id === id)
+  function getServiceTickets() {
+    return db.value.serviceTickets
+  }
+
+  function getServiceTicketById(id: number) {
+    return db.value.serviceTickets.find(t => t.id === id)
+  }
 
   return {
     init,

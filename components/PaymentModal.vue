@@ -12,22 +12,22 @@
           <!-- Customer Info -->
           <div v-if="customer" class="bg-blue-50 p-4 rounded-md">
             <h3 class="font-medium">Customer: {{ customer.name }}</h3>
-            <p class="text-sm text-blue-600">Available Credit: ${{ customer.credit.toFixed(2) }}</p>
+            <p class="text-sm text-blue-600">Available Credit: ${{ customer.credit }}</p>
           </div>
   
           <!-- Payment Summary -->
           <div class="bg-gray-50 p-4 rounded-md space-y-2">
             <div class="flex justify-between">
               <span>Subtotal:</span>
-              <span>${{ subtotal.toFixed(2) }}</span>
+              <span>${{ subtotal }}</span>
             </div>
             <div class="flex justify-between">
               <span>Tax ({{ (taxRate * 100).toFixed() }}%):</span>
-              <span>${{ tax.toFixed(2) }}</span>
+              <span>${{ tax }}</span>
             </div>
             <div class="flex justify-between font-bold">
               <span>Total:</span>
-              <span>${{ total.toFixed(2) }}</span>
+              <span>${{ total }}</span>
             </div>
           </div>
   
@@ -84,20 +84,20 @@
           <div class="bg-gray-50 p-4 rounded-md space-y-2">
             <div class="flex justify-between text-sm">
               <span>Cash Payment:</span>
-              <span>${{ cashAmount.toFixed(2) }}</span>
+              <span>${{ cashAmount }}</span>
             </div>
             <div class="flex justify-between text-sm">
               <span>Store Credit Used:</span>
-              <span>${{ creditAmount.toFixed(2) }}</span>
+              <span>${{ creditAmount }}</span>
             </div>
             <div class="flex justify-between text-sm">
               <span>New Store Credit:</span>
-              <span>${{ newCreditAmount.toFixed(2) }}</span>
+              <span>${{ newCreditAmount }}</span>
             </div>
             <div class="flex justify-between font-medium pt-2 border-t">
               <span>Remaining Amount:</span>
               <span :class="remainingAmount > 0 ? 'text-red-600' : 'text-green-600'">
-                ${{ remainingAmount.toFixed(2) }}
+                ${{ remainingAmount }}
               </span>
             </div>
           </div>

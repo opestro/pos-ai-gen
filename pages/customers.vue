@@ -35,7 +35,10 @@
               Phone
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Transactions
+              Total Spent
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Available Credit
             </th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
@@ -47,19 +50,27 @@
             <td class="px-6 py-4 whitespace-nowrap">{{ customer.name }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ customer.email }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ customer.phone }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              {{ getCustomerTransactionCount(customer.id) }}
-            </td>
+            <td class="px-6 py-4 whitespace-nowrap">${{ customer.totalPurchases }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${{ customer.credit }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
               <button
-                @click="editCustomer(customer)"
+                @click="viewTransactions(customer)"
                 class="text-blue-600 hover:text-blue-900"
+                title="View Transactions"
+              >
+                <Icon name="heroicons:clock-20-solid" class="w-5 h-5" />
+              </button>
+              <button
+                @click="editCustomer(customer)"
+                class="text-gray-600 hover:text-gray-900"
+                title="Edit Customer"
               >
                 <Icon name="heroicons:pencil" class="w-5 h-5" />
               </button>
               <button
                 @click="deleteCustomer(customer.id)"
                 class="text-red-600 hover:text-red-900"
+                title="Delete Customer"
               >
                 <Icon name="heroicons:trash" class="w-5 h-5" />
               </button>
@@ -77,11 +88,24 @@
       @close="closeModal"
       @save="saveCustomer"
     />
+
+    <!-- Transactions Modal -->
+    <TransactionsModal
+      v-if="showTransactionsModal"
+      :is-open="showTransactionsModal"
+      :customer="selectedCustomer"
+      :transactions="customerTransactions"
+      @close="closeTransactionsModal"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useDatabase } from '~/composables/useDatabase'
+import CustomerModal from '~/components/CustomerModal.vue'
+import TransactionsModal from '~/components/TransactionsModal.vue'
+
 const { init, getCustomers, addCustomer, updateCustomer, deleteCustomer, getCustomerTransactions } = useDatabase()
 
 // Initialize database
@@ -91,7 +115,10 @@ onMounted(async () => {
 
 const searchQuery = ref('')
 const showAddModal = ref(false)
+const showTransactionsModal = ref(false)
 const editingCustomer = ref(null)
+const selectedCustomer = ref(null)
+const customerTransactions = ref([])
 
 const customers = computed(() => getCustomers())
 
@@ -106,8 +133,10 @@ const filteredCustomers = computed(() => {
   )
 })
 
-function getCustomerTransactionCount(customerId) {
-  return getCustomerTransactions(customerId).length
+function viewTransactions(customer) {
+  selectedCustomer.value = customer
+  customerTransactions.value = getCustomerTransactions(customer.id)
+  showTransactionsModal.value = true
 }
 
 function editCustomer(customer) {
@@ -118,6 +147,12 @@ function editCustomer(customer) {
 function closeModal() {
   showAddModal.value = false
   editingCustomer.value = null
+}
+
+function closeTransactionsModal() {
+  showTransactionsModal.value = false
+  selectedCustomer.value = null
+  customerTransactions.value = []
 }
 
 function saveCustomer(customer) {

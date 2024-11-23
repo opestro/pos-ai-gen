@@ -21,7 +21,7 @@
           @click="$emit('select', product)"
         >
           <h3 class="font-medium">{{ product.name }}</h3>
-          <p class="text-gray-600">${{ product.price.toFixed(2) }}</p>
+          <p class="text-gray-600">${{ product.price }}</p>
           <p class="text-sm" :class="product.stock <= 5 ? 'text-red-500' : 'text-gray-500'">
             Stock: {{ product.stock }}
             <span v-if="product.stock <= 5">(Low)</span>

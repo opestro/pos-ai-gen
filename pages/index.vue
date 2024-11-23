@@ -22,13 +22,14 @@
       
       <PosProductGrid
         v-if="activeTab === 'Products'"
-        :products="products"
+        :products="store.products"
         @select="addToCart"
       />
       
       <PosServiceGrid
         v-else
-        :services="services"
+        :services="store.services"
+        :tickets="serviceTickets"
         @new-service="showServiceModal = true"
         @select="selectService"
       />
@@ -38,13 +39,13 @@
     <div class="w-1/3">
       <PosCartPanel
         ref="cartPanel"
-        :items="cart"
-        :customers="customers"
+        :items="store.cart"
+        :customers="store.customers"
         :tax-rate="0.1"
         @customer-change="handleCustomerChange"
         @update-quantity="updateQuantity"
         @remove-item="removeFromCart"
-        @process-payment="showPaymentModal = true"
+        @process-payment="handleProcessPayment"
         @clear-cart="clearCart"
       />
     </div>
@@ -60,8 +61,18 @@
     <ServiceModal
       v-if="showServiceModal"
       :is-open="showServiceModal"
-      @close="showServiceModal = false"
-      @create="handleServiceCreate"
+      :customers="store.customers"
+      :products="store.products"
+      @close="closeServiceModal"
+      @created="handleServiceCreate"
+    />
+
+    <ServiceTicketModal
+      v-if="showTicketModal"
+      :is-open="showTicketModal"
+      :ticket="selectedTicket"
+      @close="closeTicketModal"
+      @complete="completeServiceTicket"
     />
 
     <PaymentModal
@@ -69,37 +80,39 @@
       :is-open="showPaymentModal"
       :subtotal="store.subtotal"
       :tax-rate="0.1"
-      @close="showPaymentModal = false"
+      @close="closePaymentModal"
       @complete="handlePaymentComplete"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { usePosStore } from '~/stores/pos'
-const { init, getProducts, getCustomers } = useDatabase()
+import { useDatabase } from '~/composables/useDatabase'
 
 const store = usePosStore()
+const { init, getProducts, getCustomers, getServices, getServiceTickets, addServiceTicket } = useDatabase()
 
 // UI State
 const activeTab = ref('Products')
 const showCustomerModal = ref(false)
 const showServiceModal = ref(false)
 const showPaymentModal = ref(false)
+const showTicketModal = ref(false)
 const cartPanel = ref(null)
 
 // Data
-const products = computed(() => store.products)
-const services = computed(() => store.services)
-const customers = computed(() => store.customers)
-const cart = computed(() => store.cart)
+const serviceTickets = ref([])
+const selectedTicket = ref(null)
 
 // Initialize data
 onMounted(async () => {
   await init()
   store.products = await getProducts()
   store.customers = await getCustomers()
+  store.services = await getServices()
+  serviceTickets.value = await getServiceTickets()
 })
 
 // Methods
@@ -133,13 +146,38 @@ async function handleCustomerSave(customer) {
   showCustomerModal.value = false
 }
 
-function handleServiceCreate(service) {
-  store.addService(service)
+function selectService(ticket) {
+  selectedTicket.value = ticket
+  showTicketModal.value = true
+}
+
+async function handleServiceCreate(serviceData) {
+  try {
+    const ticket = await addServiceTicket(serviceData)
+    serviceTickets.value.push(ticket)
+    selectedTicket.value = ticket
+    showServiceModal.value = false
+    showTicketModal.value = true
+  } catch (error) {
+    console.error('Failed to create service ticket:', error)
+  }
+}
+
+function closeServiceModal() {
   showServiceModal.value = false
 }
 
-function selectService(service) {
-  // Handle service selection
+function closeTicketModal() {
+  showTicketModal.value = false
+  selectedTicket.value = null
+}
+
+function handleProcessPayment() {
+  showPaymentModal.value = true
+}
+
+function closePaymentModal() {
+  showPaymentModal.value = false
 }
 
 async function handlePaymentComplete(paymentDetails) {
@@ -149,7 +187,22 @@ async function handlePaymentComplete(paymentDetails) {
     showPaymentModal.value = false
   } catch (error) {
     console.error('Payment failed:', error)
-    // Handle error (show error modal, etc.)
+  }
+}
+
+async function completeServiceTicket(ticket) {
+  try {
+    const result = await store.completeServiceTicket(ticket)
+    if (result) {
+      const index = serviceTickets.value.findIndex(t => t.id === ticket.id)
+      if (index !== -1) {
+        serviceTickets.value[index] = result.ticket
+      }
+      cartPanel.value?.setLastTransaction(result.transaction)
+    }
+    showTicketModal.value = false
+  } catch (error) {
+    console.error('Failed to complete service ticket:', error)
   }
 }
 </script>

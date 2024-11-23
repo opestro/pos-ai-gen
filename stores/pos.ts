@@ -21,17 +21,15 @@ export const usePosStore = defineStore('pos', {
   actions: {
     // Product Management
     async addProduct(product) {
-      // In a real app, this would make an API call
-      const newProduct = {
-        ...product,
-        id: Date.now(), // Temporary ID generation
-        createdAt: new Date()
-      }
+      const { addProduct } = useDatabase()
+      const newProduct = await addProduct(product)
       this.products.push(newProduct)
       return newProduct
     },
 
     async updateProduct(product) {
+      const { updateProduct } = useDatabase()
+      await updateProduct(product)
       const index = this.products.findIndex(p => p.id === product.id)
       if (index !== -1) {
         this.products[index] = { ...product }
@@ -44,13 +42,15 @@ export const usePosStore = defineStore('pos', {
 
     // Service Management
     async addService(service) {
-      const newService = {
-        ...service,
-        id: Date.now(),
-        createdAt: new Date()
-      }
+      const { addService } = useDatabase()
+      const newService = await addService(service)
       this.services.push(newService)
       return newService
+    },
+
+    async completeServiceTicket(ticket) {
+      const { completeServiceTicket } = useDatabase()
+      return await completeServiceTicket(ticket.id)
     },
 
     // Cart Management
@@ -78,22 +78,30 @@ export const usePosStore = defineStore('pos', {
       this.activeCustomer = null
     },
     
-    async processTransaction() {
-      const { createTransaction } = useDatabase()
-      
+    async processTransaction(paymentDetails) {
       try {
+        const { createTransaction } = useDatabase()
+        
         const transaction = {
-          items: this.cart,
           customerId: this.activeCustomer,
+          items: this.cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
           subtotal: this.subtotal,
           tax: this.tax,
           total: this.total,
-          date: new Date()
+          cash: paymentDetails.cash,
+          creditUsed: paymentDetails.creditUsed,
+          newCredit: paymentDetails.newCredit,
+          type: 'sale'
         }
         
-        await createTransaction(transaction)
+        const completedTransaction = await createTransaction(transaction)
         this.clearCart()
-        return transaction
+        return completedTransaction
       } catch (error) {
         console.error('Transaction failed:', error)
         throw error
@@ -106,8 +114,7 @@ export const usePosStore = defineStore('pos', {
 
     async addCustomer(customer) {
       const { addCustomer } = useDatabase()
-      const newCustomerId = await addCustomer(customer)
-      const newCustomer = { ...customer, id: newCustomerId }
+      const newCustomer = await addCustomer(customer)
       this.customers.push(newCustomer)
       return newCustomer
     }
