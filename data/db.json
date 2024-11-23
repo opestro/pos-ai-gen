@@ -1,0 +1,37 @@
+{
+    "customers": [
+      {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "phone": "555-0123",
+        "credit": 0,
+        "totalPurchases": 0,
+        "createdAt": "2024-03-15T10:00:00Z"
+      }
+    ],
+    "products": [
+      {
+        "id": 1,
+        "name": "Product 1",
+        "price": 19.99,
+        "stock": 50,
+        "sku": "P1001",
+        "category": "General",
+        "lastRestocked": "2024-03-15T10:00:00Z"
+      },
+      {
+        "id": 2,
+        "name": "Product 2",
+        "price": 29.99,
+        "stock": 30,
+        "sku": "P1002",
+        "category": "General",
+        "lastRestocked": "2024-03-15T10:00:00Z"
+      }
+    ],
+    "services": [],
+    "transactions": [],
+    "serviceTickets": []
+
+  }
